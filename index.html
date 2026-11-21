@@ -1,0 +1,686 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>ぬりえ</title>
+<style>
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #fff4e0;
+    font-family: "Hiragino Maru Gothic ProN", "Hiragino Sans", sans-serif;
+    -webkit-user-select: none; user-select: none;
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+    overscroll-behavior: none;
+  }
+  body {
+    display: flex; flex-direction: column;
+    height: 100dvh;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* えをえらぶ */
+  #pics {
+    display: flex; gap: 10px; padding: 10px 12px 6px;
+    overflow-x: auto; scrollbar-width: none; touch-action: pan-x;
+  }
+  #pics::-webkit-scrollbar { display: none; }
+  #pics button {
+    flex: none; width: 60px; height: 60px; padding: 3px;
+    border: 3px solid #e6d3b3; border-radius: 14px; background: #fff;
+  }
+  #pics button.on { border-color: #ff8a3d; box-shadow: 0 0 0 3px #ffd2ad; }
+  #pics svg { width: 100%; height: 100%; pointer-events: none; }
+
+  #pics img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+  #pics #add { font-size: 30px; font-weight: 700; color: #b89b6e; line-height: 1; }
+
+  /* じぶんのえ（がぞう）*/
+  .wrap { position: relative; width: 100%; height: 100%; }
+  .wrap canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  .wrap canvas + canvas { pointer-events: none; }
+
+  /* ぬるところ */
+  #stagebox { flex: 1; min-height: 0; position: relative; display: flex; }
+  #stage { flex: 1; min-width: 0; min-height: 0; padding: 8px 12px; touch-action: none; overflow: hidden; }
+  #fit {
+    position: absolute; top: 14px; right: 18px;
+    font: inherit; font-size: 14px; font-weight: 700; color: #5a4632;
+    padding: 8px 12px; border-radius: 999px;
+    border: 3px solid #e6d3b3; background: rgba(255,255,255,.92);
+  }
+  #stage svg { width: 100%; height: 100%; display: block; }
+
+  .r { fill: #fff; cursor: pointer; }
+  .o, #pics .r { fill: none; stroke: #3a3a3a; stroke-width: 5; stroke-linejoin: round; stroke-linecap: round; }
+  .o { pointer-events: none; }
+  #pics .r { fill: #fff; }
+  .s { fill: none; stroke-width: 26; stroke-linecap: round; stroke-linejoin: round; }
+  .f { animation: fade .18s ease-out; }
+  @keyframes fade { from { opacity: 0; } }
+  .d { fill: none; stroke: #3a3a3a; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+  .dot { fill: #3a3a3a; pointer-events: none; }
+
+  /* ふとさ */
+  #sizes { display: flex; justify-content: center; gap: 12px; padding: 4px 14px; --c: #ff4b4b; }
+  #sizes.off { visibility: hidden; }
+  #sizes button {
+    width: 46px; height: 46px; padding: 0; border-radius: 50%;
+    border: 3px solid #e6d3b3; background: #fff;
+    display: grid; place-items: center;
+  }
+  #sizes button.on { border-color: #ff8a3d; box-shadow: 0 0 0 3px #ffd2ad; }
+  #sizes i { aspect-ratio: 1; border-radius: 50%; background: var(--c); border: 1px solid rgba(0,0,0,.2); }
+
+  /* いろ */
+  #colors {
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+    padding: 6px 14px; max-width: 480px; width: 100%; margin: 0 auto;
+  }
+  #colors button {
+    aspect-ratio: 1; width: 100%; border-radius: 50%;
+    border: 3px solid rgba(0,0,0,.18); padding: 0;
+    transition: transform .1s;
+  }
+  #colors button.on { transform: scale(1.12); border-color: #3a3a3a; box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3a3a3a; }
+
+  /* どうぐ */
+  #modes, #tools { display: flex; justify-content: center; gap: 12px; padding: 8px 14px 12px; }
+  #modes { padding-bottom: 4px; }
+  #tools { gap: 8px; }
+  #modes button.on { border-color: #ff8a3d; background: #ffe9c9; box-shadow: 0 0 0 3px #ffd2ad; }
+  #modes button, #tools button {
+    font: inherit; font-size: 16px; font-weight: 700; color: #5a4632;
+    padding: 10px 14px; border-radius: 999px; white-space: nowrap;
+    border: 3px solid #e6d3b3; background: #fff;
+  }
+  #tools button:active { background: #ffe9c9; }
+  #tools button:disabled { opacity: .4; }
+</style>
+</head>
+<body>
+  <div id="pics"><button id="add" aria-label="えをついか">＋</button></div>
+  <input id="file" type="file" accept="image/*" hidden>
+  <div id="stagebox">
+    <div id="stage"></div>
+    <button id="fit" hidden>🔍 もとのおおきさ</button>
+  </div>
+  <div id="modes">
+    <button data-mode="brush" class="on">🖍 なぞる</button>
+    <button data-mode="fill">🪣 タップ</button>
+  </div>
+  <div id="sizes"></div>
+  <div id="colors"></div>
+  <div id="tools">
+    <button id="undo">↩ もどす</button>
+    <button id="reset">✨ さいしょから</button>
+    <button id="del" aria-label="このえをけす" hidden>🗑</button>
+  </div>
+
+<script>
+// ---- え（かたちは うしろから じゅんばんに かさねる）----
+// class="r" がぬれるところ、"d" と "dot" はかざりの線
+const BG = '<rect class="r bg" x="4" y="4" width="392" height="392" rx="18"/>';
+const PICS = [
+  { id: 'flower', svg: BG + `
+    <circle class="r" cx="62" cy="62" r="34"/>
+    <rect class="r" x="189" y="215" width="22" height="165" rx="8"/>
+    <g transform="rotate(-30 148 310)"><ellipse class="r" cx="148" cy="310" rx="46" ry="20"/></g>
+    <g transform="rotate(30 252 285)"><ellipse class="r" cx="252" cy="285" rx="46" ry="20"/></g>
+    <circle class="r" cx="265" cy="150" r="45"/>
+    <circle class="r" cx="232.5" cy="206" r="45"/>
+    <circle class="r" cx="167.5" cy="206" r="45"/>
+    <circle class="r" cx="135" cy="150" r="45"/>
+    <circle class="r" cx="167.5" cy="94" r="45"/>
+    <circle class="r" cx="232.5" cy="94" r="45"/>
+    <circle class="r" cx="200" cy="150" r="42"/>
+    <circle class="dot" cx="186" cy="143" r="5"/><circle class="dot" cx="214" cy="143" r="5"/>
+    <path class="d" d="M185 160 Q200 174 215 160"/>` },
+  { id: 'cat', svg: BG + `
+    <path class="r" d="M285 310 Q375 300 352 212 Q346 190 330 206 Q342 272 278 276 Z"/>
+    <ellipse class="r" cx="200" cy="295" rx="95" ry="82"/>
+    <ellipse class="r" cx="200" cy="312" rx="50" ry="52"/>
+    <polygon class="r" points="112,125 118,38 188,85"/>
+    <polygon class="r" points="288,125 282,38 212,85"/>
+    <circle class="r" cx="200" cy="150" r="95"/>
+    <circle class="dot" cx="165" cy="140" r="9"/><circle class="dot" cx="235" cy="140" r="9"/>
+    <ellipse class="r" cx="200" cy="168" rx="12" ry="9"/>
+    <path class="d" d="M200 177 Q200 192 185 192 M200 177 Q200 192 215 192"/>
+    <path class="d" d="M150 170 L115 163 M150 182 L115 190 M250 170 L285 163 M250 182 L285 190"/>
+    <polygon class="r" points="200,245 158,222 158,268"/>
+    <polygon class="r" points="200,245 242,222 242,268"/>
+    <circle class="r" cx="200" cy="245" r="13"/>` },
+  { id: 'rabbit', svg: BG + `
+    <ellipse class="r" cx="160" cy="88" rx="28" ry="74"/>
+    <ellipse class="r" cx="240" cy="88" rx="28" ry="74"/>
+    <ellipse class="r" cx="160" cy="92" rx="12" ry="48"/>
+    <ellipse class="r" cx="240" cy="92" rx="12" ry="48"/>
+    <ellipse class="r" cx="200" cy="318" rx="80" ry="62"/>
+    <ellipse class="r" cx="150" cy="368" rx="32" ry="15"/>
+    <ellipse class="r" cx="250" cy="368" rx="32" ry="15"/>
+    <circle class="r" cx="200" cy="200" r="85"/>
+    <circle class="r" cx="145" cy="226" r="16"/>
+    <circle class="r" cx="255" cy="226" r="16"/>
+    <circle class="dot" cx="170" cy="190" r="8"/><circle class="dot" cx="230" cy="190" r="8"/>
+    <ellipse class="r" cx="200" cy="214" rx="10" ry="7"/>
+    <path class="d" d="M200 221 Q200 236 187 236 M200 221 Q200 236 213 236"/>` },
+  { id: 'cake', svg: BG + `
+    <ellipse class="r" cx="200" cy="350" rx="165" ry="25"/>
+    <rect class="r" x="80" y="240" width="240" height="110" rx="12"/>
+    <path class="r" d="M80 240 H320 V262 Q300 290 280 262 Q260 290 240 262 Q220 290 200 262 Q180 290 160 262 Q140 290 120 262 Q100 290 80 262 Z"/>
+    <circle class="r" cx="130" cy="316" r="12"/>
+    <circle class="r" cx="200" cy="316" r="12"/>
+    <circle class="r" cx="270" cy="316" r="12"/>
+    <rect class="r" x="120" y="150" width="160" height="92" rx="12"/>
+    <path class="r" d="M120 150 H280 V170 Q260 196 240 170 Q220 196 200 170 Q180 196 160 170 Q140 196 120 170 Z"/>
+    <rect class="r" x="192" y="95" width="16" height="55"/>
+    <path class="r" d="M200 58 Q217 82 200 96 Q183 82 200 58 Z"/>
+    <circle class="r" cx="150" cy="140" r="15"/>
+    <circle class="r" cx="250" cy="140" r="15"/>` },
+  { id: 'dress', svg: BG + `
+    <path class="r" d="M160 82 L150 30 L180 56 L200 22 L220 56 L250 30 L240 82 Z"/>
+    <circle class="r" cx="200" cy="63" r="8"/>
+    <circle class="r" cx="146" cy="128" r="24"/>
+    <circle class="r" cx="254" cy="128" r="24"/>
+    <path class="r" d="M150 190 L80 370 Q200 395 320 370 L250 190 Z"/>
+    <path class="r" d="M92 340 L80 370 Q200 395 320 370 L308 340 Q200 365 92 340 Z"/>
+    <circle class="r" cx="150" cy="285" r="12"/>
+    <circle class="r" cx="200" cy="296" r="12"/>
+    <circle class="r" cx="250" cy="285" r="12"/>
+    <path class="r" d="M160 112 L150 190 H250 L240 112 Q200 138 160 112 Z"/>
+    <rect class="r" x="146" y="180" width="108" height="20" rx="6"/>
+    <circle class="r" cx="200" cy="190" r="13"/>` },
+];
+
+const COLORS = ['#ff4b4b','#ff9f1c','#ffe14d','#9be15d','#2fb65d','#6fd3ff',
+                '#3b7dff','#a56bff','#ff8fc7','#ffd3b0','#a8703f','#ffffff'];
+
+// ---- ほぞん（ブラウザにのこす。つかえなくても うごく）----
+// saved[えのid][ばしょのばんごう] = ぬったものの じゅんばん。{c} はぜんぶぬり、{c, d} はなぞった線
+const KEY = 'nurie-v1';
+let saved = {};
+try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) {} };
+
+const NS = 'http://www.w3.org/2000/svg';
+const make = tag => document.createElementNS(NS, tag);
+const SIZES = [12, 26, 44];   // ペンのふとさ（えのなかの たんい）
+let pic = PICS[0], color = COLORS[0], mode = 'brush', size = SIZES[1];
+let layers = [], undoStack = [], stroke = null;
+const $ = id => document.getElementById(id);
+const svgWrap = inner => `<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">${inner}</svg>`;
+
+function drawOp(i, op) {
+  let el;
+  if (op.d) {
+    el = make('path'); el.setAttribute('class', 's');
+    el.setAttribute('d', op.d); el.setAttribute('stroke', op.c);
+    if (op.w) el.style.strokeWidth = op.w;
+  } else {
+    el = make('rect');
+    el.setAttribute('x', -400); el.setAttribute('y', -400);
+    el.setAttribute('width', 1200); el.setAttribute('height', 1200);
+    el.setAttribute('fill', op.c);
+  }
+  layers[i].appendChild(el);
+  return el;
+}
+
+const ops = i => { const s = saved[pic.id] || (saved[pic.id] = {}); return s[i] || (s[i] = []); };
+
+// かたちごとに「しろいかたち → ぬったもの（かたちの中だけ見える）→ りんかく線」をかさねる
+function showPic(p, keepUndo) {
+  if (p.lines) return showImg(p);
+  pic = p; stroke = null; img = null;
+  if (!keepUndo) { undoStack = []; zoom = { s: 1, x: 0, y: 0 }; }
+  $('stage').innerHTML = svgWrap(p.svg);
+  applyZoom();
+  const svg = $('stage').firstChild;
+  const defs = svg.insertBefore(make('defs'), svg.firstChild);
+  const state = saved[p.id] || (saved[p.id] = {});
+  layers = [];
+  [...svg.querySelectorAll('.r')].forEach((el, i) => {
+    el.dataset.i = i;
+    const cp = make('clipPath'); cp.id = 'clip' + i;
+    const shape = el.cloneNode(); shape.removeAttribute('class'); shape.removeAttribute('data-i');
+    cp.appendChild(shape); defs.appendChild(cp);
+    const g = make('g'); g.setAttribute('clip-path', `url(#clip${i})`); g.dataset.i = i;
+    const outline = el.cloneNode(); outline.setAttribute('class', 'o'); outline.removeAttribute('data-i');
+    el.after(g, outline);
+    layers[i] = g;
+    let list = state[i];
+    if (typeof list === 'string') list = [{ c: list }];   // まえのほぞんデータ
+    if (!list) return;
+    if (!keepUndo) {                                       // ぜんぶぬりより まえのものは見えないので すてる
+      const last = list.map(o => !o.d).lastIndexOf(true);
+      if (last > 0) list = list.slice(last);
+    }
+    state[i] = list;
+    list.forEach(op => drawOp(i, op));
+  });
+  markPic(p);
+  updateTools();
+}
+
+function markPic(p) {
+  [...$('pics').children].forEach(b => {
+    const on = b.dataset.id === p.id;
+    b.classList.toggle('on', on);
+    if (on) b.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  });
+  $('del').hidden = !p.lines;
+}
+
+function updateTools() { $('undo').disabled = undoStack.length === 0; }
+
+// ゆびのばしょを えのなかの ざひょうに なおす
+function local(g, e) {
+  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(g.getScreenCTM().inverse());
+  return [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10];
+}
+
+const stage = $('stage');
+
+// ---- 2ほんのゆびで かくだい・いどう ----
+let zoom = { s: 1, x: 0, y: 0 }, pinch = null, downAt = 0, acted = false;
+const touches = new Map();
+const MAX_ZOOM = 5;
+
+function stageBox() {
+  const r = stage.getBoundingClientRect(), cs = getComputedStyle(stage);
+  const pl = parseFloat(cs.paddingLeft), pt = parseFloat(cs.paddingTop);
+  return { x: r.left + pl, y: r.top + pt,
+           w: r.width - pl - parseFloat(cs.paddingRight), h: r.height - pt - parseFloat(cs.paddingBottom) };
+}
+
+function applyZoom() {
+  const el = stage.firstElementChild;
+  if (el) {
+    el.style.transformOrigin = '0 0';
+    el.style.transform = zoom.s === 1 ? '' : `translate(${zoom.x}px, ${zoom.y}px) scale(${zoom.s})`;
+  }
+  $('fit').hidden = zoom.s === 1;
+}
+
+function setZoom(s, x, y) {
+  if (s < 1.05) s = 1;
+  const o = stageBox();
+  zoom = { s, x: Math.min(0, Math.max(o.w * (1 - s), x)), y: Math.min(0, Math.max(o.h * (1 - s), y)) };
+  applyZoom();
+}
+
+function pinchState() {
+  const [a, b] = [...touches.values()];
+  return { mx: (a[0] + b[0]) / 2, my: (a[1] + b[1]) / 2, d: Math.hypot(a[0] - b[0], a[1] - b[1]) || 1 };
+}
+
+function startPinch() {
+  const painting = stroke || (img && img.s);
+  if (acted && performance.now() - downAt < 400) {
+    // 1ぽんめのゆびが ぬってしまったぶんを とりけす
+    stroke = null; if (img) img.s = null;
+    $('undo').click();
+  } else if (painting) return;       // ぬっている とちゅうは かくだいしない（てのひらが さわっても だいじょうぶ）
+  acted = false;
+  pinch = { ...pinchState(), s0: zoom.s, x0: zoom.x, y0: zoom.y };
+}
+
+function movePinch() {
+  if (touches.size < 2) return;
+  const p = pinchState(), o = stageBox();
+  const s = Math.min(MAX_ZOOM, Math.max(1, pinch.s0 * p.d / pinch.d));
+  // つまんだところが ゆびの下から ずれないように うごかす
+  const cx = (pinch.mx - o.x - pinch.x0) / pinch.s0, cy = (pinch.my - o.y - pinch.y0) / pinch.s0;
+  setZoom(s, p.mx - o.x - cx * s, p.my - o.y - cy * s);
+}
+
+$('fit').addEventListener('click', () => setZoom(1, 0, 0));
+stage.addEventListener('pointerdown', e => {
+  if (e.isPrimary) touches.clear();
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (touches.size === 2) return startPinch();
+  if (touches.size > 2 || pinch) return;
+  const before = undoStack[undoStack.length - 1];
+  paintDown(e);
+  downAt = performance.now();
+  acted = undoStack[undoStack.length - 1] !== before;
+});
+
+function paintDown(e) {
+  if (pic.lines) return imgDown(e);
+  if (stroke) return;
+  const hit = e.target.closest && e.target.closest('[data-i]');
+  if (!hit) return;
+  const i = +hit.dataset.i, list = ops(i);
+  if (mode === 'fill') {
+    const last = list[list.length - 1];
+    if (last && !last.d && last.c === color) return;
+    const op = { c: color };
+    list.push(op); drawOp(i, op).setAttribute('class', 'f');
+    undoStack.push({ i }); persist(); updateTools();
+    return;
+  }
+  // なぞる：さいしょにさわった かたちの中だけ ぬれる（はみださない）
+  const [x, y] = local(layers[i], e);
+  const op = { c: color, w: size, d: `M${x} ${y}l0.01 0` };
+  list.push(op);
+  stroke = { id: e.pointerId, i, op, el: drawOp(i, op), x, y };
+  undoStack.push({ i }); updateTools();
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+}
+
+stage.addEventListener('pointermove', e => {
+  if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch) return movePinch();
+  if (pic.lines) return imgMove(e);
+  if (!stroke || e.pointerId !== stroke.id) return;
+  const [x, y] = local(layers[stroke.i], e);
+  if (Math.hypot(x - stroke.x, y - stroke.y) < 2) return;
+  stroke.op.d += `L${x} ${y}`;
+  stroke.el.setAttribute('d', stroke.op.d);
+  stroke.x = x; stroke.y = y;
+});
+
+function endStroke(e) {
+  touches.delete(e.pointerId);
+  if (pinch) { if (touches.size < 2) pinch = null; return; }
+  if (pic.lines) return imgEnd(e);
+  if (!stroke || e.pointerId !== stroke.id) return;
+  stroke = null; persist();
+}
+stage.addEventListener('pointerup', endStroke);
+stage.addEventListener('pointercancel', endStroke);
+
+$('undo').addEventListener('click', () => {
+  if (pic.lines) return imgUndo();
+  if (stroke) return;
+  const step = undoStack.pop();
+  if (!step) return;
+  if (step.reset) { saved[pic.id] = step.reset; showPic(pic, true); }
+  else {
+    const list = ops(step.i);
+    if (list.length) { list.pop(); layers[step.i].lastChild.remove(); }
+  }
+  persist(); updateTools();
+});
+
+// 「さいしょから」は「もどす」でとりけせる
+$('reset').addEventListener('click', () => {
+  if (pic.lines) return imgReset();
+  if (stroke) return;
+  const prev = saved[pic.id] || {};
+  if (!Object.values(prev).some(l => l.length)) return;
+  saved[pic.id] = {};
+  undoStack.push({ reset: prev });
+  showPic(pic, true);
+  persist();
+});
+
+[...$('modes').children].forEach(b => b.addEventListener('click', () => {
+  mode = b.dataset.mode;
+  $('sizes').classList.toggle('off', mode !== 'brush');
+  [...$('modes').children].forEach(x => x.classList.toggle('on', x === b));
+}));
+
+// ---- じぶんのえ（がぞうを よみこんで ぬる）----
+// がぞうは このたんまつの中（IndexedDB）にだけ ほぞんする。どこにも おくらない
+const W = 800;                       // がぞうをぬるときの たてよこのピクセル
+let img = null;                      // いま ひらいている じぶんのえ
+const tmpC = document.createElement('canvas'), maskC = document.createElement('canvas');
+tmpC.width = tmpC.height = maskC.width = maskC.height = W;
+const tmp = tmpC.getContext('2d'), maskX = maskC.getContext('2d');
+const stackBuf = new Int32Array(W * W);
+
+const idb = (() => {
+  let dbp;
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('nurie', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('imgs', { keyPath: 'id' });
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  const tx = (m, fn) => open().then(db => new Promise((res, rej) => {
+    const t = db.transaction('imgs', m), rq = fn(t.objectStore('imgs'));
+    t.oncomplete = () => res(rq.result); t.onerror = () => rej(t.error);
+  }));
+  return {
+    all: () => tx('readonly', s => s.getAll()),
+    put: v => tx('readwrite', s => s.put(v)),
+    del: id => tx('readwrite', s => s.delete(id)),
+  };
+})();
+
+const loadImg = src => new Promise((res, rej) => {
+  const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = src;
+});
+
+// がぞうを「くろい線だけ（ほかは とうめい）」になおして ほぞんする
+async function importFile(file) {
+  const url = URL.createObjectURL(file);
+  let im;
+  try { im = await loadImg(url); }
+  catch (e) { alert('この がぞうは ひらけませんでした'); return; }
+  finally { URL.revokeObjectURL(url); }
+  const c = document.createElement('canvas'); c.width = c.height = W;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, W, W);
+  const k = Math.min(W / im.naturalWidth, W / im.naturalHeight) * 0.94;
+  const w = im.naturalWidth * k, h = im.naturalHeight * k;
+  x.drawImage(im, (W - w) / 2, (W - h) / 2, w, h);
+  const id = x.getImageData(0, 0, W, W), d = id.data, n = W * W;
+  const lum = new Uint8Array(n), hist = new Uint32Array(256);
+  for (let i = 0; i < n; i++) {
+    const l = (d[i * 4] * 299 + d[i * 4 + 1] * 587 + d[i * 4 + 2] * 114) / 1000 | 0;
+    lum[i] = l; hist[l]++;
+  }
+  // かみのいろ（いちばん多い あかるさ）を「しろ」、いちばん くらいところを「くろ」にそろえる
+  const pct = q => { let acc = 0; for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= n * q) return v; } return 255; };
+  const hi = Math.max(pct(0.5) * 0.9, 60), lo = Math.min(pct(0.02), hi - 50);
+  for (let i = 0; i < n; i++) {
+    let t = (lum[i] - lo) / (hi - lo); t = t < 0 ? 0 : t > 1 ? 1 : t;
+    d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 58; d[i * 4 + 3] = (1 - t) * 255;
+  }
+  x.putImageData(id, 0, 0);
+  x.strokeStyle = '#3a3a3a'; x.lineWidth = 10; x.strokeRect(5, 5, W - 10, W - 10);   // わく
+  const rec = { id: 'img' + Date.now(), lines: c.toDataURL('image/png'), paint: null };
+  try { await idb.put(rec); } catch (e) {}
+  addThumb(rec, true);
+  showPic(rec);
+}
+
+async function showImg(p) {
+  pic = p; stroke = null; undoStack = []; img = null;
+  stage.innerHTML = '<div class="wrap"><canvas width="800" height="800"></canvas><canvas width="800" height="800"></canvas></div>';
+  zoom = { s: 1, x: 0, y: 0 }; applyZoom();
+  const [pc, lc] = stage.querySelectorAll('canvas');
+  const cur = { pc, px: pc.getContext('2d'), barrier: null, s: null };
+  cur.px.fillStyle = '#fff'; cur.px.fillRect(0, 0, W, W);
+  markPic(p); updateTools();
+  const lx = lc.getContext('2d');
+  lx.drawImage(await loadImg(p.lines), 0, 0);
+  if (p.paint) cur.px.drawImage(await loadImg(p.paint), 0, 0);
+  if (pic !== p) return;
+  const a = lx.getImageData(0, 0, W, W).data, b = new Uint8Array(W * W);
+  for (let i = 0; i < b.length; i++) b[i] = a[i * 4 + 3] > 100 ? 1 : 0;   // 線のところ
+  cur.barrier = b; img = cur;
+}
+
+function imgPoint(e) {
+  const r = img.pc.getBoundingClientRect(), side = Math.min(r.width, r.height);
+  return [(e.clientX - r.left - (r.width - side) / 2) / side * W,
+          (e.clientY - r.top - (r.height - side) / 2) / side * W];
+}
+
+// さわったところから 線にぶつかるまで ひろげて「ぬれる はんい」を maskC につくる
+function regionMask(x0, y0) {
+  const b = img.barrier;
+  let s = y0 * W + x0;
+  if (b[s]) {                        // 線の上をさわったら ちかくの ぬれるところをさがす
+    let best = -1, bd = 1e9;
+    for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
+      const x = x0 + dx, y = y0 + dy, dd = dx * dx + dy * dy;
+      if (x >= 0 && y >= 0 && x < W && y < W && !b[y * W + x] && dd < bd) { bd = dd; best = y * W + x; }
+    }
+    if (best < 0) return false;
+    s = best;
+  }
+  const m = new Uint8Array(W * W);
+  let n = 0; stackBuf[n++] = s; m[s] = 1;
+  while (n) {
+    const p = stackBuf[--n], x = p % W;
+    if (x > 0 && !m[p - 1] && !b[p - 1]) { m[p - 1] = 1; stackBuf[n++] = p - 1; }
+    if (x < W - 1 && !m[p + 1] && !b[p + 1]) { m[p + 1] = 1; stackBuf[n++] = p + 1; }
+    if (p >= W && !m[p - W] && !b[p - W]) { m[p - W] = 1; stackBuf[n++] = p - W; }
+    if (p < W * (W - 1) && !m[p + W] && !b[p + W]) { m[p + W] = 1; stackBuf[n++] = p + W; }
+  }
+  // 線の下に すこしもぐらせて、しろいすきまが のこらないようにする
+  for (let pass = 1; pass <= 3; pass++) for (let p = 0; p < m.length; p++) {
+    if (m[p] !== pass) continue;
+    const x = p % W;
+    if (x > 0 && !m[p - 1]) m[p - 1] = pass + 1;
+    if (x < W - 1 && !m[p + 1]) m[p + 1] = pass + 1;
+    if (p >= W && !m[p - W]) m[p - W] = pass + 1;
+    if (p < W * (W - 1) && !m[p + W]) m[p + W] = pass + 1;
+  }
+  const id = new ImageData(W, W);
+  for (let p = 0; p < m.length; p++) if (m[p]) id.data[p * 4 + 3] = 255;
+  maskX.putImageData(id, 0, 0);
+  return true;
+}
+
+function imgSnapshot() {
+  undoStack.push(img.px.getImageData(0, 0, W, W));
+  if (undoStack.length > 12) undoStack.shift();
+  updateTools();
+}
+
+function imgSave() {
+  pic.paint = img.pc.toDataURL('image/png');
+  idb.put(pic).catch(() => {});
+}
+
+function imgDown(e) {
+  if (!img || img.s) return;
+  const [x, y] = imgPoint(e);
+  if (x < 0 || y < 0 || x >= W || y >= W) return;
+  if (!regionMask(x | 0, y | 0)) return;
+  imgSnapshot();
+  if (mode === 'fill') {
+    tmp.globalCompositeOperation = 'source-over';
+    tmp.clearRect(0, 0, W, W); tmp.drawImage(maskC, 0, 0);
+    tmp.globalCompositeOperation = 'source-in';
+    tmp.fillStyle = color; tmp.fillRect(0, 0, W, W);
+    tmp.globalCompositeOperation = 'source-over';
+    img.px.drawImage(tmpC, 0, 0);
+    imgSave();
+    return;
+  }
+  img.s = { id: e.pointerId, x, y };
+  imgSeg(x, y, x + 0.01, y);
+  try { stage.setPointerCapture(e.pointerId); } catch (err) {}
+}
+
+// なぞった ぶぶんを「ぬれる はんい」の中だけ ぬる
+function imgSeg(x1, y1, x2, y2) {
+  const w = size * 2, pad = w / 2 + 2;
+  const bx = Math.max(0, Math.floor(Math.min(x1, x2) - pad)), by = Math.max(0, Math.floor(Math.min(y1, y2) - pad));
+  const bw = Math.min(W, Math.ceil(Math.max(x1, x2) + pad)) - bx, bh = Math.min(W, Math.ceil(Math.max(y1, y2) + pad)) - by;
+  if (bw <= 0 || bh <= 0) return;
+  tmp.globalCompositeOperation = 'source-over';
+  tmp.clearRect(0, 0, W, W);
+  tmp.strokeStyle = color; tmp.lineWidth = w; tmp.lineCap = 'round';
+  tmp.beginPath(); tmp.moveTo(x1, y1); tmp.lineTo(x2, y2); tmp.stroke();
+  tmp.globalCompositeOperation = 'destination-in';
+  tmp.drawImage(maskC, 0, 0);
+  tmp.globalCompositeOperation = 'source-over';
+  img.px.drawImage(tmpC, bx, by, bw, bh, bx, by, bw, bh);
+}
+
+function imgMove(e) {
+  if (!img || !img.s || e.pointerId !== img.s.id) return;
+  const [x, y] = imgPoint(e), s = img.s;
+  if (Math.hypot(x - s.x, y - s.y) < 2) return;
+  imgSeg(s.x, s.y, x, y);
+  s.x = x; s.y = y;
+}
+
+function imgEnd(e) {
+  if (!img || !img.s || e.pointerId !== img.s.id) return;
+  img.s = null; imgSave();
+}
+
+function imgUndo() {
+  if (!img || img.s) return;
+  const snap = undoStack.pop();
+  if (!snap) return;
+  img.px.putImageData(snap, 0, 0);
+  imgSave(); updateTools();
+}
+
+function imgReset() {
+  if (!img || img.s) return;
+  imgSnapshot();
+  img.px.fillStyle = '#fff'; img.px.fillRect(0, 0, W, W);
+  imgSave();
+}
+
+$('add').addEventListener('click', () => $('file').click());
+$('file').addEventListener('change', e => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (f) importFile(f);
+});
+$('del').addEventListener('click', () => {
+  if (!pic.lines || !confirm('この えを けしますか？（もとには もどせません）')) return;
+  idb.del(pic.id).catch(() => {});
+  const b = [...$('pics').children].find(x => x.dataset.id === pic.id);
+  if (b) b.remove();
+  showPic(PICS[0]);
+});
+
+// ---- えをえらぶ ボタン ----
+function addThumb(p, first) {
+  const b = document.createElement('button');
+  b.dataset.id = p.id;
+  if (p.lines) { const im = new Image(); im.src = p.lines; b.appendChild(im); }
+  else b.innerHTML = svgWrap(p.svg);
+  b.addEventListener('click', () => showPic(p));
+  if (first) $('pics').prepend(b); else $('pics').insertBefore(b, $('add'));
+}
+PICS.forEach(p => addThumb(p));
+idb.all().then(list => list.sort((a, b) => a.id < b.id ? -1 : 1).forEach(r => addThumb(r, true))).catch(() => {});
+
+SIZES.forEach((w, n) => {
+  const b = document.createElement('button');
+  b.innerHTML = `<i style="width:${[10, 18, 28][n]}px"></i>`;
+  if (w === size) b.classList.add('on');
+  b.addEventListener('click', () => {
+    size = w;
+    [...$('sizes').children].forEach(x => x.classList.toggle('on', x === b));
+  });
+  $('sizes').appendChild(b);
+});
+
+COLORS.forEach((c, n) => {
+  const b = document.createElement('button');
+  b.style.background = c;
+  if (n === 0) b.classList.add('on');
+  b.addEventListener('click', () => {
+    color = c;
+    $('sizes').style.setProperty('--c', c);
+    [...$('colors').children].forEach(x => x.classList.toggle('on', x === b));
+  });
+  $('colors').appendChild(b);
+});
+
+// ダブルタップやピンチでの かくだいを とめる
+document.addEventListener('gesturestart', e => e.preventDefault());
+document.addEventListener('dblclick', e => e.preventDefault());
+
+showPic(PICS[0]);
+</script>
+</body>
+</html>
