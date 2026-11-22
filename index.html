@@ -99,9 +99,31 @@
   /* どうぐ */
   #modes, #tools { display: flex; justify-content: center; gap: 8px; padding: 8px 14px 12px; }
   #modes { padding-bottom: 4px; }
-  #tools { gap: 8px; }
+  #tools { gap: 6px; flex-wrap: wrap; }
+  body #tools button { font-size: 14px; padding: 10px 8px; }
+  @media (min-width: 600px) { body #tools button { font-size: 16px; padding: 10px 14px; } }
+
+  /* ほぞん の がめん */
+  #save {
+    position: fixed; inset: 0; z-index: 10; padding: 20px;
+    background: rgba(60, 40, 20, .55);
+    display: grid; place-items: center;
+  }
+  #save[hidden] { display: none; }
+  #save .card {
+    width: 100%; max-width: 440px; padding: 16px;
+    background: #fff4e0; border-radius: 22px; text-align: center;
+  }
+  #save img {
+    display: block; width: 100%; background: #fff;
+    border: 3px solid #e6d3b3; border-radius: 14px;
+    -webkit-touch-callout: default;
+  }
+  #save p { margin: 12px 4px; font-size: 14px; line-height: 1.6; color: #5a4632; }
+  #save .row { display: flex; justify-content: center; gap: 10px; }
+  #save #savego { border-color: #ff8a3d; background: #ffe9c9; }
   #modes button.on { border-color: #ff8a3d; background: #ffe9c9; box-shadow: 0 0 0 3px #ffd2ad; }
-  #modes button, #tools button {
+  #modes button, #tools button, #save button {
     font: inherit; font-size: 16px; font-weight: 700; color: #5a4632;
     padding: 10px 14px; border-radius: 999px; white-space: nowrap;
     border: 3px solid #e6d3b3; background: #fff;
@@ -127,6 +149,18 @@
   <div id="tools">
     <button id="undo">↩ もどす</button>
     <button id="reset">✨ さいしょから</button>
+    <button id="savebtn">📥 ほぞん</button>
+  </div>
+
+  <div id="save" hidden>
+    <div class="card">
+      <img id="saveimg" alt="ぬった え">
+      <p id="savehint"></p>
+      <div class="row">
+        <button id="savego">📥 ほぞんする</button>
+        <button id="saveclose">とじる</button>
+      </div>
+    </div>
   </div>
 
 <script>
@@ -518,7 +552,7 @@ async function showImg(p) {
   stage.innerHTML = '<div class="wrap"><canvas width="800" height="800"></canvas><canvas width="800" height="800"></canvas></div>';
   zoom = { s: 1, x: 0, y: 0 }; applyZoom();
   const [pc, lc] = stage.querySelectorAll('canvas');
-  const cur = { pc, px: pc.getContext('2d'), barrier: null, s: null };
+  const cur = { pc, lc, px: pc.getContext('2d'), barrier: null, s: null };
   cur.px.fillStyle = '#fff'; cur.px.fillRect(0, 0, W, W);
   markPic(p); updateTools();
   const lx = lc.getContext('2d');
@@ -663,6 +697,69 @@ function deletePic(p) {
   if (b) b.remove();
   if (pic === p) showPic(PICS[0]);
 }
+
+// ---- ぬった えを がぞうにして ほぞん ----
+const EXPORT_SIZE = 1200;
+// がぞうにするときは CSS が とどかないので、線やぬりの みためを えの中に かきこむ
+const EXPORT_CSS = '.r{fill:#fff}' +
+  '.o,.d{fill:none;stroke:#3a3a3a;stroke-width:5;stroke-linejoin:round;stroke-linecap:round}' +
+  '.s{fill:none;stroke-width:26;stroke-linecap:round;stroke-linejoin:round}.dot{fill:#3a3a3a}';
+let work = null;                     // いま ほぞんしようとしている がぞう
+
+async function renderWork() {
+  const S = EXPORT_SIZE, c = document.createElement('canvas');
+  c.width = c.height = S;
+  const x = c.getContext('2d');
+  x.fillStyle = '#fff'; x.fillRect(0, 0, S, S);
+  if (pic.lines) {
+    x.drawImage(img.pc, 0, 0, S, S);
+    x.drawImage(img.lc, 0, 0, S, S);
+  } else {
+    const svg = stage.firstElementChild.cloneNode(true);
+    svg.removeAttribute('style');                       // かくだい中でも ぜんたいを ほぞんする
+    svg.setAttribute('width', S); svg.setAttribute('height', S);
+    const st = make('style'); st.textContent = EXPORT_CSS;
+    svg.insertBefore(st, svg.firstChild);
+    const xml = new XMLSerializer().serializeToString(svg);
+    x.drawImage(await loadImg('data:image/svg+xml;charset=utf-8,' + encodeURIComponent(xml)), 0, 0, S, S);
+  }
+  return new Promise(res => c.toBlob(res, 'image/png'));
+}
+
+// きょうゆう（iPad・iPhone では「画像を保存」が えらべる）が つかえるか
+const canShareFile = f => !!(navigator.canShare && navigator.canShare({ files: [f] }));
+
+$('savebtn').addEventListener('click', async () => {
+  if (stroke || (pic.lines && (!img || img.s))) return;
+  let blob;
+  try { blob = await renderWork(); } catch (e) { blob = null; }
+  if (!blob) { alert('がぞうに できませんでした'); return; }
+  const d = new Date(), p2 = n => String(n).padStart(2, '0');
+  const name = `nurie-${d.getFullYear()}${p2(d.getMonth() + 1)}${p2(d.getDate())}-${p2(d.getHours())}${p2(d.getMinutes())}${p2(d.getSeconds())}.png`;
+  work = { file: new File([blob], name, { type: 'image/png' }), url: URL.createObjectURL(blob) };
+  $('saveimg').src = work.url;
+  $('savehint').textContent = canShareFile(work.file)
+    ? '「ほぞんする」をおして「画像を保存」をえらぶと、しゃしんに はいります。'
+    : '「ほぞんする」をおすと、がぞうが ダウンロードされます。';
+  $('save').hidden = false;
+});
+
+// きょうゆうは ボタンをおした しゅんかんに よばないと iPad・iPhone で うごかないので、ここでは またない
+$('savego').addEventListener('click', () => {
+  if (!work) return;
+  if (canShareFile(work.file)) { navigator.share({ files: [work.file] }).catch(() => {}); return; }
+  const a = document.createElement('a');
+  a.href = work.url; a.download = work.file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+});
+
+function closeSave() {
+  $('save').hidden = true;
+  if (work) { URL.revokeObjectURL(work.url); work = null; }
+  $('saveimg').removeAttribute('src');
+}
+$('saveclose').addEventListener('click', closeSave);
+$('save').addEventListener('click', e => { if (e.target === $('save')) closeSave(); });
 
 // ---- えをえらぶ ボタン ----
 function addThumb(p, first) {
