@@ -34,6 +34,14 @@
     border: 3px solid #e6d3b3; border-radius: 14px; background: #fff;
   }
   #pics button.on { border-color: #ff8a3d; box-shadow: 0 0 0 3px #ffd2ad; }
+  #pics button { position: relative; }
+  #pics .x {
+    display: none; position: absolute; top: -9px; right: -9px;
+    width: 28px; height: 28px; border-radius: 50%;
+    background: #ff5a5a; color: #fff; border: 2px solid #fff;
+    font-size: 18px; font-weight: 700; line-height: 24px; text-align: center;
+  }
+  #pics button.on .x { display: block; }
   #pics svg { width: 100%; height: 100%; pointer-events: none; }
 
   #pics img { width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
@@ -119,7 +127,6 @@
   <div id="tools">
     <button id="undo">↩ もどす</button>
     <button id="reset">✨ さいしょから</button>
-    <button id="del" aria-label="このえをけす" hidden>🗑</button>
   </div>
 
 <script>
@@ -279,7 +286,6 @@ function markPic(p) {
     b.classList.toggle('on', on);
     if (on) b.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
   });
-  $('del').hidden = !p.lines;
 }
 
 function updateTools() { $('undo').disabled = undoStack.length === 0; }
@@ -649,19 +655,28 @@ $('file').addEventListener('change', e => {
   e.target.value = '';
   if (f) importFile(f);
 });
-$('del').addEventListener('click', () => {
-  if (!pic.lines || !confirm('この えを けしますか？（もとには もどせません）')) return;
-  idb.del(pic.id).catch(() => {});
-  const b = [...$('pics').children].find(x => x.dataset.id === pic.id);
+// よみこんだ えを けす（たんまつの中の がぞうと ぬったものを けす）
+function deletePic(p) {
+  if (!confirm('この えを けしますか？\nぬった いろも いっしょに きえて、もとには もどせません')) return;
+  idb.del(p.id).catch(() => {});
+  const b = [...$('pics').children].find(x => x.dataset.id === p.id);
   if (b) b.remove();
-  showPic(PICS[0]);
-});
+  if (pic === p) showPic(PICS[0]);
+}
 
 // ---- えをえらぶ ボタン ----
 function addThumb(p, first) {
   const b = document.createElement('button');
   b.dataset.id = p.id;
-  if (p.lines) { const im = new Image(); im.src = p.lines; b.appendChild(im); }
+  if (p.lines) {
+    const im = new Image(); im.src = p.lines; b.appendChild(im);
+    // えらんでいる ときだけ みえる「×」。おすと かくにんしてから けす
+    const x = document.createElement('span');
+    x.className = 'x'; x.textContent = '×';
+    x.setAttribute('role', 'button'); x.setAttribute('aria-label', 'この えを けす');
+    x.addEventListener('click', e => { e.stopPropagation(); deletePic(p); });
+    b.appendChild(x);
+  }
   else b.innerHTML = svgWrap(p.svg);
   b.addEventListener('click', () => showPic(p));
   if (first) $('pics').prepend(b); else $('pics').insertBefore(b, $('add'));
