@@ -89,7 +89,7 @@
   #colors button.on { transform: scale(1.12); border-color: #3a3a3a; box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3a3a3a; }
 
   /* どうぐ */
-  #modes, #tools { display: flex; justify-content: center; gap: 12px; padding: 8px 14px 12px; }
+  #modes, #tools { display: flex; justify-content: center; gap: 8px; padding: 8px 14px 12px; }
   #modes { padding-bottom: 4px; }
   #tools { gap: 8px; }
   #modes button.on { border-color: #ff8a3d; background: #ffe9c9; box-shadow: 0 0 0 3px #ffd2ad; }
@@ -112,6 +112,7 @@
   <div id="modes">
     <button data-mode="brush" class="on">🖍 なぞる</button>
     <button data-mode="fill">🪣 タップ</button>
+    <button data-mode="erase">🧽 けす</button>
   </div>
   <div id="sizes"></div>
   <div id="colors"></div>
@@ -208,7 +209,10 @@ const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(saved)); 
 
 const NS = 'http://www.w3.org/2000/svg';
 const make = tag => document.createElementNS(NS, tag);
-const SIZES = [12, 26, 44];   // ペンのふとさ（えのなかの たんい）
+const SIZES = [4, 12, 28];
+// かくだい中も がめんの上での ふとさが かわらないように、かくだいしたぶんだけ ほそくする
+const penWidth = () => Math.round(size / zoom.s * 100) / 100;
+const penColor = () => mode === 'erase' ? '#ffffff' : color;   // けしゴムは しろでぬる   // ペンのふとさ（えのなかの たんい）
 let pic = PICS[0], color = COLORS[0], mode = 'brush', size = SIZES[1];
 let layers = [], undoStack = [], stroke = null;
 const $ = id => document.getElementById(id);
@@ -366,7 +370,7 @@ function paintDown(e) {
   }
   // なぞる：さいしょにさわった かたちの中だけ ぬれる（はみださない）
   const [x, y] = local(layers[i], e);
-  const op = { c: color, w: size, d: `M${x} ${y}l0.01 0` };
+  const op = { c: penColor(), w: penWidth(), d: `M${x} ${y}l0.01 0` };
   list.push(op);
   stroke = { id: e.pointerId, i, op, el: drawOp(i, op), x, y };
   undoStack.push({ i }); updateTools();
@@ -422,7 +426,7 @@ $('reset').addEventListener('click', () => {
 
 [...$('modes').children].forEach(b => b.addEventListener('click', () => {
   mode = b.dataset.mode;
-  $('sizes').classList.toggle('off', mode !== 'brush');
+  $('sizes').classList.toggle('off', mode === 'fill');
   [...$('modes').children].forEach(x => x.classList.toggle('on', x === b));
 }));
 
@@ -585,13 +589,13 @@ function imgDown(e) {
 
 // なぞった ぶぶんを「ぬれる はんい」の中だけ ぬる
 function imgSeg(x1, y1, x2, y2) {
-  const w = size * 2, pad = w / 2 + 2;
+  const w = penWidth() * 2, pad = w / 2 + 2;
   const bx = Math.max(0, Math.floor(Math.min(x1, x2) - pad)), by = Math.max(0, Math.floor(Math.min(y1, y2) - pad));
   const bw = Math.min(W, Math.ceil(Math.max(x1, x2) + pad)) - bx, bh = Math.min(W, Math.ceil(Math.max(y1, y2) + pad)) - by;
   if (bw <= 0 || bh <= 0) return;
   tmp.globalCompositeOperation = 'source-over';
   tmp.clearRect(0, 0, W, W);
-  tmp.strokeStyle = color; tmp.lineWidth = w; tmp.lineCap = 'round';
+  tmp.strokeStyle = penColor(); tmp.lineWidth = w; tmp.lineCap = 'round';
   tmp.beginPath(); tmp.moveTo(x1, y1); tmp.lineTo(x2, y2); tmp.stroke();
   tmp.globalCompositeOperation = 'destination-in';
   tmp.drawImage(maskC, 0, 0);
@@ -655,7 +659,7 @@ idb.all().then(list => list.sort((a, b) => a.id < b.id ? -1 : 1).forEach(r => ad
 
 SIZES.forEach((w, n) => {
   const b = document.createElement('button');
-  b.innerHTML = `<i style="width:${[10, 18, 28][n]}px"></i>`;
+  b.innerHTML = `<i style="width:${[5, 13, 24][n]}px"></i>`;
   if (w === size) b.classList.add('on');
   b.addEventListener('click', () => {
     size = w;
