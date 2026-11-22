@@ -282,8 +282,17 @@ function markPic(p) {
 function updateTools() { $('undo').disabled = undoStack.length === 0; }
 
 // ゆびのばしょを えのなかの ざひょうに なおす
+// （iPhone の Safari は getScreenCTM が かくだいを むしするので、えの わくの いちから じぶんで けいさんする）
 function local(g, e) {
-  const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(g.getScreenCTM().inverse());
+  const r = stage.firstElementChild.getBoundingClientRect(), side = Math.min(r.width, r.height);
+  let p = new DOMPoint((e.clientX - r.left - (r.width - side) / 2) / side * 400,
+                       (e.clientY - r.top - (r.height - side) / 2) / side * 400);
+  // かたむけたり ずらしたりしている かたち（はっぱ など）は、そのぶんを もとにもどす
+  const t = g.parentNode.transform && g.parentNode.transform.baseVal.consolidate();
+  if (t) {
+    const m = t.matrix;
+    p = p.matrixTransform(new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]).inverse());
+  }
   return [Math.round(p.x * 10) / 10, Math.round(p.y * 10) / 10];
 }
 
