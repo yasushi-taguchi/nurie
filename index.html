@@ -78,15 +78,15 @@
 
   /* いろ */
   #colors {
-    display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px;
+    display: grid; grid-template-columns: repeat(9, 1fr); gap: 6px;
     padding: 6px 14px; max-width: 480px; width: 100%; margin: 0 auto;
   }
   #colors button {
     aspect-ratio: 1; width: 100%; border-radius: 50%;
-    border: 3px solid rgba(0,0,0,.18); padding: 0;
+    border: 2px solid rgba(0,0,0,.18); padding: 0;
     transition: transform .1s;
   }
-  #colors button.on { transform: scale(1.12); border-color: #3a3a3a; box-shadow: 0 0 0 3px #fff, 0 0 0 6px #3a3a3a; }
+  #colors button.on { transform: scale(1.12); border-color: #3a3a3a; box-shadow: 0 0 0 2px #fff, 0 0 0 4px #3a3a3a; }
 
   /* どうぐ */
   #modes, #tools { display: flex; justify-content: center; gap: 8px; padding: 8px 14px 12px; }
@@ -198,7 +198,9 @@ const PICS = [
 ];
 
 const COLORS = ['#ff4b4b','#ff9f1c','#ffe14d','#9be15d','#2fb65d','#6fd3ff',
-                '#3b7dff','#a56bff','#ff8fc7','#ffd3b0','#a8703f','#ffffff'];
+                '#3b7dff','#a56bff','#ff8fc7','#9a9a9a','#a8703f','#ffffff',
+                // はだいろ（うすい → こい）
+                '#ffeedd','#ffe0c8','#ffd3b0','#f2ba8e','#dba074','#b97d52'];
 
 // ---- ほぞん（ブラウザにのこす。つかえなくても うごく）----
 // saved[えのid][ばしょのばんごう] = ぬったものの じゅんばん。{c} はぜんぶぬり、{c, d} はなぞった線
