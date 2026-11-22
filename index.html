@@ -68,14 +68,11 @@
   .o { pointer-events: none; }
   #pics .r { fill: #fff; }
   .s { fill: none; stroke-width: 26; stroke-linecap: round; stroke-linejoin: round; }
-  .f { animation: fade .18s ease-out; }
-  @keyframes fade { from { opacity: 0; } }
   .d { fill: none; stroke: #3a3a3a; stroke-width: 5; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
   .dot { fill: #3a3a3a; pointer-events: none; }
 
   /* ふとさ */
   #sizes { display: flex; justify-content: center; gap: 12px; padding: 4px 14px; --c: #ff4b4b; }
-  #sizes.off { visibility: hidden; }
   #sizes button {
     width: 46px; height: 46px; padding: 0; border-radius: 50%;
     border: 3px solid #e6d3b3; background: #fff;
@@ -141,7 +138,6 @@
   </div>
   <div id="modes">
     <button data-mode="brush" class="on">🖍 なぞる</button>
-    <button data-mode="fill">🪣 タップ</button>
     <button data-mode="erase">🧽 けす</button>
   </div>
   <div id="sizes"></div>
@@ -245,7 +241,7 @@ const COLORS = [// あか ピンク うすピンク だいだい きいろ き�
                 '#9a9a9a','#a8703f','#ffffff','#ffeedd','#ffe0c8','#ffd3b0','#f2ba8e','#dba074','#b97d52','#d4bcff'];
 
 // ---- ほぞん（ブラウザにのこす。つかえなくても うごく）----
-// saved[えのid][ばしょのばんごう] = ぬったものの じゅんばん。{c} はぜんぶぬり、{c, d} はなぞった線
+// saved[えのid][ばしょのばんごう] = ぬったものの じゅんばん。{c, d} はなぞった線。{c} だけのものは まえにあった タップぬりの のこり（ひょうじだけ する）
 const KEY = 'nurie-v1';
 let saved = {};
 try { saved = JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) {}
@@ -412,14 +408,6 @@ function paintDown(e) {
   const hit = e.target.closest && e.target.closest('[data-i]');
   if (!hit) return;
   const i = +hit.dataset.i, list = ops(i);
-  if (mode === 'fill') {
-    const last = list[list.length - 1];
-    if (last && !last.d && last.c === color) return;
-    const op = { c: color };
-    list.push(op); drawOp(i, op).setAttribute('class', 'f');
-    undoStack.push({ i }); persist(); updateTools();
-    return;
-  }
   // なぞる：さいしょにさわった かたちの中だけ ぬれる（はみださない）
   const [x, y] = local(layers[i], e);
   const op = { c: penColor(), w: penWidth(), d: `M${x} ${y}l0.01 0` };
@@ -478,7 +466,6 @@ $('reset').addEventListener('click', () => {
 
 [...$('modes').children].forEach(b => b.addEventListener('click', () => {
   mode = b.dataset.mode;
-  $('sizes').classList.toggle('off', mode === 'fill');
   [...$('modes').children].forEach(x => x.classList.toggle('on', x === b));
 }));
 
@@ -624,16 +611,6 @@ function imgDown(e) {
   if (x < 0 || y < 0 || x >= W || y >= W) return;
   if (!regionMask(x | 0, y | 0)) return;
   imgSnapshot();
-  if (mode === 'fill') {
-    tmp.globalCompositeOperation = 'source-over';
-    tmp.clearRect(0, 0, W, W); tmp.drawImage(maskC, 0, 0);
-    tmp.globalCompositeOperation = 'source-in';
-    tmp.fillStyle = color; tmp.fillRect(0, 0, W, W);
-    tmp.globalCompositeOperation = 'source-over';
-    img.px.drawImage(tmpC, 0, 0);
-    imgSave();
-    return;
-  }
   img.s = { id: e.pointerId, x, y };
   imgSeg(x, y, x + 0.01, y);
   try { stage.setPointerCapture(e.pointerId); } catch (err) {}
